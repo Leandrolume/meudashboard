@@ -1,0 +1,20 @@
+{
+  "name": "meudashboard",
+  "version": "1.0.0",
+  "description": "Rastreamento de produtividade via WhatsApp",
+  "main": "meudashboard-backend.js",
+  "scripts": {
+    "start": "node meudashboard-backend.js",
+    "dev": "nodemon meudashboard-backend.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.0.3",
+    "mongoose": "^7.0.0",
+    "axios": "^1.4.0",
+    "@anthropic-ai/sdk": "^0.7.0",
+    "@google-cloud/speech": "^5.0.0",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5"
+  }
+}

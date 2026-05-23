@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lume - Rastreamento por WhatsApp</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root { --black: #000000; --card: #1a1a1a; --border: #2d2d2d; --text-primary: #ffffff; --text-secondary: #d4d4d4; --text-tertiary: #a0a0a0; --green-light: #c8e6c9; --green: #81c784; --orange-light: #ffe0b2; --orange: #ffb74d; --blue-light: #b3e5fc; }
+html, body { width: 100%; height: 100%; background: var(--black); font-family: 'Inter', -apple-system, sans-serif; color: var(--text-primary); overflow: hidden; }
+.app { display: flex; height: 100vh; }
+.sidebar { width: 160px; background: var(--card); border-right: 1px solid var(--border); padding: 18px 12px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; }
+.logo { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--text-primary); }
+.nav { display: flex; flex-direction: column; gap: 0; flex: 1; }
+.nav-item { padding: 9px 10px; border-radius: 5px; font-size: 11px; color: var(--text-tertiary); cursor: pointer; transition: all 0.2s; font-weight: 500; }
+.nav-item:hover { color: var(--text-secondary); background: rgba(255, 255, 255, 0.04); }
+.nav-item.active { background: rgba(129, 199, 132, 0.2); color: var(--green-light); font-weight: 600; border-left: 3px solid var(--green); padding-left: 7px; }
+.user-section { border-top: 1px solid var(--border); padding-top: 12px; display: flex; align-items: center; gap: 8px; }
+.user-avatar { width: 28px; height: 28px; background: rgba(129, 199, 132, 0.3); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--green-light); font-weight: 600; font-size: 10px; }
+.user-info { flex: 1; }
+.user-name { font-size: 10px; font-weight: 600; }
+.user-role { font-size: 8px; color: var(--text-tertiary); }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.header { height: 60px; border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; justify-content: space-between; align-items: center; background: var(--card); }
+.header h1 { font-size: 18px; font-weight: 700; }
+.content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+.content::-webkit-scrollbar { width: 5px; }
+.content::-webkit-scrollbar-thumb { background: rgba(129, 199, 132, 0.2); border-radius: 3px; }
+.screen { display: none; }
+.screen.active { display: block; }
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 18px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 14px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.kpi-value { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.kpi-label { font-size: 8px; color: var(--text-tertiary); text-transform: uppercase; line-height: 1.2; }
+.audio-message { background: rgba(79, 195, 247, 0.1); border-left: 3px solid rgba(79, 195, 247, 0.4); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.audio-time { font-size: 8px; font-weight: 700; color: var(--blue-light); }
+.audio-original { font-size: 9px; color: var(--text-secondary); margin-top: 4px; font-style: italic; }
+.audio-extracted { font-size: 8px; color: var(--text-tertiary); margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(79, 195, 247, 0.2); }
+.extracted-item { font-size: 8px; color: var(--green-light); margin: 2px 0; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.badge-success { background: rgba(129, 199, 132, 0.2); color: var(--green-light); }
+.badge-info { background: rgba(79, 195, 247, 0.2); color: var(--blue-light); }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 10px 16px; text-align: left; font-weight: 600; color: var(--text-tertiary); border-bottom: 1px solid var(--border); font-size: 8px; text-transform: uppercase; }
+td { padding: 10px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.02); font-size: 9px; }
+tr:hover { background: rgba(255, 255, 255, 0.02); }
+.whatsapp-hint { background: rgba(79, 195, 247, 0.08); border: 1px solid rgba(79, 195, 247, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.whatsapp-hint-title { font-size: 10px; font-weight: 700; color: var(--blue-light); margin-bottom: 6px; }
+.whatsapp-hint-text { font-size: 8px; color: var(--text-secondary); line-height: 1.4; }
+.chart-container { position: relative; height: 200px; width: 100%; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">MEU DASHBOARD</div>
+    <div class="nav">
+      <div class="nav-item active" onclick="showScreen('dashboard')">Dashboard</div>
+      <div class="nav-item" onclick="showScreen('whatsapp')">Áudios WhatsApp</div>
+      <div class="nav-item" onclick="showScreen('agenda')">Agenda do Dia</div>
+      <div class="nav-item" onclick="showScreen('relatorio')">Relatório</div>
+    </div>
+    <div class="user-section">
+      <div class="user-avatar">L</div>
+      <div class="user-info">
+        <div class="user-name">Leandro</div>
+        <div class="user-role">Assessor</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <h1 id="pageTitle">Dashboard</h1>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="screen active" id="dashboard">
+        
+        <div class="whatsapp-hint">
+          <div class="whatsapp-hint-title">📱 Como Usar</div>
+          <div class="whatsapp-hint-text">
+            <strong>Grave áudios no WhatsApp de forma natural:</strong> "8h da manhã, cheguei no escritório" 
+            ou "Saí da reunião com Marina, 1h20" ou "Estou elaborando proposta para João". 
+            O Lume rastreia automaticamente suas horas!
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-value" id="kpi-horas">8h 45min</div>
+            <div class="kpi-label">Horas Trabalhadas</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" id="kpi-atividades">6</div>
+            <div class="kpi-label">Atividades Registradas</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" id="kpi-captacao">R$ 1.2M</div>
+            <div class="kpi-label">Captação Hoje</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-value" id="kpi-producao">R$ 137K/h</div>
+            <div class="kpi-label">Produção/Hora</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="section">
+            <div class="section-title">Atividades Hoje (Extraídas de Áudios)</div>
+            <div id="atividades-hoje"></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">⚡ Oportunidades de Melhoria</div>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 9px;">
+              <div style="background: rgba(129, 199, 132, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); padding: 8px; border-radius: 6px; color: var(--text-secondary);">
+                ✓ Você atingiu 109% da meta de hoje (8h 45min vs 8h meta).
+              </div>
+              <div style="background: rgba(129, 199, 132, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); padding: 8px; border-radius: 6px; color: var(--text-secondary);">
+                ✓ 4 reuniões registradas - seu melhor tipo de atividade (R$ 450K cada).
+              </div>
+              <div style="background: rgba(255, 183, 77, 0.08); border-left: 3px solid rgba(255, 183, 77, 0.3); padding: 8px; border-radius: 6px; color: var(--text-secondary);">
+                ⚠ Follow-ups consomem 1h 30min. Considere automatizar mais.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ÁUDIOS WHATSAPP -->
+      <div class="screen" id="whatsapp">
+        
+        <div class="whatsapp-hint">
+          <div class="whatsapp-hint-title">🎙️ Como Funciona o Rastreamento por WhatsApp</div>
+          <div class="whatsapp-hint-text">
+            <strong style="color: var(--green-light);">Você fala naturalmente:</strong> Grave mensagens de voz no WhatsApp 
+            durante o dia (chegando no trabalho, entre reuniões, saindo). <br><br>
+            <strong style="color: var(--green-light);">IA do Lume interpreta:</strong> Extrai automaticamente hora, 
+            tipo de atividade, cliente, duração e contexto. <br><br>
+            <strong style="color: var(--green-light);">Dashboard atualiza:</strong> Dados aparecem em tempo real 
+            no seu dashboard de produtividade.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🎙️ Áudios Capturados Hoje (Último ao Primeiro)</div>
+          
+          <div class="audio-message">
+            <div class="audio-time">14:30 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Saí da reunião com Pedro, conversamos sobre crédito privado, durou 45 minutos, acho que vai fechar esse mês"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-success">✓ Processado</span>
+              <div class="extracted-item">📌 <strong>Atividade:</strong> Reunião</div>
+              <div class="extracted-item">👤 <strong>Cliente:</strong> Pedro Henrique</div>
+              <div class="extracted-item">📦 <strong>Produto:</strong> Crédito Privado</div>
+              <div class="extracted-item">⏱️ <strong>Duração:</strong> 45 minutos</div>
+              <div class="extracted-item">🎯 <strong>Status:</strong> Alta probabilidade de fechamento</div>
+            </div>
+          </div>
+
+          <div class="audio-message">
+            <div class="audio-time">12:00 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Parei para almoço, vou retomar em 1 hora com análise de propostas pendentes"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-success">✓ Processado</span>
+              <div class="extracted-item">📌 <strong>Atividade:</strong> Pausa/Almoço</div>
+              <div class="extracted-item">⏱️ <strong>Duração:</strong> 1 hora</div>
+              <div class="extracted-item">📝 <strong>Próxima:</strong> Análise de propostas</div>
+            </div>
+          </div>
+
+          <div class="audio-message">
+            <div class="audio-time">10:15 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Acabei de mandar proposta para Marina de 3 milhões em imóvel, consultoria completa. Levou 1 hora e meia"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-success">✓ Processado</span>
+              <div class="extracted-item">📌 <strong>Atividade:</strong> Elaboração de Proposta</div>
+              <div class="extracted-item">👤 <strong>Cliente:</strong> Marina Lopes</div>
+              <div class="extracted-item">💰 <strong>Valor:</strong> R$ 3.0M</div>
+              <div class="extracted-item">📦 <strong>Produto:</strong> Imóvel/Consultoria</div>
+              <div class="extracted-item">⏱️ <strong>Duração:</strong> 1h 30min</div>
+            </div>
+          </div>
+
+          <div class="audio-message">
+            <div class="audio-time">09:30 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Reunião com Carlos sobre offshore, ele quer mais informações, agenda para segunda. Durou 1 hora"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-success">✓ Processado</span>
+              <div class="extracted-item">📌 <strong>Atividade:</strong> Reunião</div>
+              <div class="extracted-item">👤 <strong>Cliente:</strong> Carlos Andrade</div>
+              <div class="extracted-item">📦 <strong>Produto:</strong> Offshore</div>
+              <div class="extracted-item">⏱️ <strong>Duração:</strong> 1h</div>
+              <div class="extracted-item">🗓️ <strong>Follow-up:</strong> Segunda-feira agendado</div>
+            </div>
+          </div>
+
+          <div class="audio-message">
+            <div class="audio-time">08:45 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Chegou mais um follow-up de João Ribeiro sobre aquele plano de previdência que mandei. Convenci a falar segunda"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-success">✓ Processado</span>
+              <div class="extracted-item">📌 <strong>Atividade:</strong> Follow-up</div>
+              <div class="extracted-item">👤 <strong>Cliente:</strong> João Ribeiro</div>
+              <div class="extracted-item">📦 <strong>Produto:</strong> Previdência</div>
+              <div class="extracted-item">⏱️ <strong>Duração:</strong> 20 minutos</div>
+              <div class="extracted-item">📞 <strong>Tipo:</strong> Ligação/Mensagem</div>
+            </div>
+          </div>
+
+          <div class="audio-message">
+            <div class="audio-time">08:00 - Sexta-feira</div>
+            <div class="audio-original">
+              📱 "Bom dia, cheguei no escritório. Vou revisar propostas e contatos de hoje"
+            </div>
+            <div class="audio-extracted">
+              <span class="badge badge-info">ℹ️ Registrado</span>
+              <div class="extracted-item">📌 <strong>Evento:</strong> Chegada no Trabalho</div>
+              <div class="extracted-item">⏰ <strong>Hora:</strong> 08:00</div>
+              <div class="extracted-item">📝 <strong>Contexto:</strong> Início do dia produtivo</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- AGENDA DO DIA -->
+      <div class="screen" id="agenda">
+        <div class="section">
+          <div class="section-title">📅 Agenda de Hoje (Montada por IA dos Áudios)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Horário</th>
+                <th>Atividade</th>
+                <th>Cliente/Detalhes</th>
+                <th>Duração</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>08:00</td>
+                <td>Chegada</td>
+                <td>Escritório</td>
+                <td>-</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+              <tr>
+                <td>08:45</td>
+                <td>Follow-up</td>
+                <td>João Ribeiro - Previdência</td>
+                <td>20min</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+              <tr>
+                <td>09:30</td>
+                <td>Reunião</td>
+                <td>Carlos Andrade - Offshore</td>
+                <td>1h</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+              <tr>
+                <td>10:15</td>
+                <td>Elaborar Proposta</td>
+                <td>Marina Lopes - Imóvel (R$ 3M)</td>
+                <td>1h 30min</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+              <tr>
+                <td>12:00</td>
+                <td>Almoço</td>
+                <td>Pausa</td>
+                <td>1h</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+              <tr>
+                <td>14:30</td>
+                <td>Reunião</td>
+                <td>Pedro Henrique - Crédito Privado</td>
+                <td>45min</td>
+                <td><span class="badge badge-success">Completo</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">📋 Análise de Agenda</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 9px;">
+            <div>
+              <strong style="color: var(--text-primary);">Total de horas:</strong> <span style="color: var(--green-light);">8h 45min</span>
+            </div>
+            <div>
+              <strong style="color: var(--text-primary);">Atividades produtivas:</strong> <span style="color: var(--green-light);">4 reuniões + 1 proposta</span>
+            </div>
+            <div>
+              <strong style="color: var(--text-primary);">Horas de pausa:</strong> <span style="color: var(--orange-light);">1h (almoço)</span>
+            </div>
+            <div>
+              <strong style="color: var(--text-primary);">Meta atingida:</strong> <span style="color: var(--green-light);">109% ✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RELATÓRIO -->
+      <div class="screen" id="relatorio">
+        <div class="section">
+          <div class="section-title">📊 Resumo Semanal (Extraído de Áudios)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th>Horas</th>
+                <th>Reuniões</th>
+                <th>Propostas</th>
+                <th>Captação</th>
+                <th>Prod/h</th>
+                <th>Meta</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Segunda</td>
+                <td>8.5h</td>
+                <td>3</td>
+                <td>1</td>
+                <td>R$ 950K</td>
+                <td>R$ 112K</td>
+                <td style="color: var(--green-light);">106%</td>
+              </tr>
+              <tr>
+                <td>Terça</td>
+                <td>7.2h</td>
+                <td>2</td>
+                <td>1</td>
+                <td>R$ 620K</td>
+                <td>R$ 86K</td>
+                <td style="color: var(--orange-light);">90%</td>
+              </tr>
+              <tr>
+                <td>Quarta</td>
+                <td>8.1h</td>
+                <td>3</td>
+                <td>1</td>
+                <td>R$ 750K</td>
+                <td>R$ 93K</td>
+                <td style="color: var(--green-light);">101%</td>
+              </tr>
+              <tr>
+                <td>Quinta</td>
+                <td>8.0h</td>
+                <td>2</td>
+                <td>2</td>
+                <td>R$ 800K</td>
+                <td>R$ 100K</td>
+                <td style="color: var(--green-light);">100%</td>
+              </tr>
+              <tr style="background: rgba(129, 199, 132, 0.1); font-weight: 700;">
+                <td>Sexta (Hoje)</td>
+                <td style="color: var(--green-light);">8h 45min</td>
+                <td style="color: var(--green-light);">4</td>
+                <td style="color: var(--green-light);">1</td>
+                <td style="color: var(--green-light);">R$ 1.2M</td>
+                <td style="color: var(--green-light);">R$ 137K</td>
+                <td style="color: var(--green-light);">109%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">💡 Insights Inteligentes (IA Analisando Áudios)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 9px;">
+            <div style="background: rgba(129, 199, 132, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); padding: 8px; border-radius: 6px;">
+              <strong style="color: var(--green-light);">✓ Melhor desempenho da semana:</strong> Sexta-feira com R$ 137K/h 
+              (acima da média R$ 98K/h). Padrão: 4 reuniões no mesmo dia.
+            </div>
+            <div style="background: rgba(129, 199, 132, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); padding: 8px; border-radius: 6px;">
+              <strong style="color: var(--green-light);">✓ Tipo mais lucrativo:</strong> Reuniões (média R$ 450K cada). 
+              Recomendação: aumentar em 30%.
+            </div>
+            <div style="background: rgba(255, 183, 77, 0.08); border-left: 3px solid rgba(255, 183, 77, 0.3); padding: 8px; border-radius: 6px;">
+              <strong style="color: var(--orange-light);">⚠ Terça é fraca:</strong> Apenas 7.2h. IA sugere agendar 3 reuniões fixas pela manhã.
+            </div>
+            <div style="background: rgba(129, 199, 132, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); padding: 8px; border-radius: 6px;">
+              <strong style="color: var(--green-light);">✓ Cliente em destaque:</strong> Marina Lopes (R$ 3M em 1 proposta). 
+              Potencial de R$ 12M/ano com esse padrão.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  
+  const titles = {
+    'dashboard': 'Dashboard',
+    'whatsapp': 'Áudios WhatsApp',
+    'agenda': 'Agenda do Dia',
+    'relatorio': 'Relatório Semanal'
+  };
+  
+  document.getElementById('pageTitle').textContent = titles[screenId];
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// Renderizar atividades de hoje
+const atividades = [
+  { hora: '08:00', tipo: 'Chegada', duracao: '-', status: 'Completo' },
+  { hora: '08:45', tipo: 'Follow-up João', duracao: '20min', status: 'Completo' },
+  { hora: '09:30', tipo: 'Reunião Carlos', duracao: '1h', status: 'Completo' },
+  { hora: '10:15', tipo: 'Proposta Marina', duracao: '1h 30min', status: 'Completo' },
+  { hora: '12:00', tipo: 'Almoço', duracao: '1h', status: 'Completo' },
+  { hora: '14:30', tipo: 'Reunião Pedro', duracao: '45min', status: 'Completo' }
+];
+
+const atividadesHoje = document.getElementById('atividades-hoje');
+if (atividadesHoje) {
+  atividadesHoje.innerHTML = atividades.map(a => `
+    <div style="background: rgba(79, 195, 247, 0.08); border-left: 3px solid rgba(129, 199, 132, 0.3); border-radius: 6px; padding: 8px; margin-bottom: 6px; font-size: 8px;">
+      <div style="font-weight: 700; color: var(--text-primary);">${a.hora} - ${a.tipo}</div>
+      <div style="color: var(--text-tertiary); margin-top: 2px;">⏱️ ${a.duracao} | ${a.status}</div>
+    </div>
+  `).join('');
+}
+</script>
+
+</body>
+</html>
+RASTREAMENTO_COMPLETO
+
+echo "✅ SISTEMA 100% WHATSAPP CRIADO!"

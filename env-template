@@ -1,0 +1,7 @@
+WHATSAPP_ACCESS_TOKEN=seu_token_aqui
+PHONE_NUMBER_ID=seu_id_aqui
+WEBHOOK_TOKEN=seu_webhook_token_aqui
+MONGODB_URI=mongodb+srv://usuario:senha@cluster.mongodb.net/meudashboard
+GOOGLE_APPLICATION_CREDENTIALS=google-service.json
+PORT=3000
+NODE_ENV=production
